@@ -2,6 +2,11 @@
 name = "maybe-borrow"
 version = "0.1.0"
 edition = "2021"
+description = "Macros for conditionally returning borrowed data."
+keywords = ["polonius", "macro"]
+categories = ["rust-patterns"]
+authors = ["Spencer Young"]
+license = "MIT"
 
 [dependencies]
 should-it-compile = "0.1.0"
