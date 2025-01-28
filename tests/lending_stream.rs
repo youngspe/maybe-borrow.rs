@@ -132,7 +132,7 @@ fn test_next_filtered() {
 
         let items = futures::stream::poll_fn(move |cx| {
             poll_next_filtered(stream.as_mut(), |x| x[0] % 2 != 0, cx)
-                .map(|x| x.map(|x| x.iter().copied().collect::<Vec<_>>()))
+                .map(|x| x.map(|x| x.to_vec()))
         })
         .collect::<Vec<_>>()
         .await;
@@ -151,7 +151,7 @@ fn test_next_filtered_with_try() {
 
         let items = futures::stream::poll_fn(move |cx| {
             poll_next_filtered_with_try(stream.as_mut(), |x| x[0] % 2 != 0, cx)
-                .map(|x| x.map(|x| x.iter().copied().collect::<Vec<_>>()))
+                .map(|x| x.map(|x| x.to_vec()))
         })
         .collect::<Vec<_>>()
         .await;

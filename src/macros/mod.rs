@@ -52,16 +52,12 @@ pub use return_borrowed;
 #[doc = include_str!("./maybe_borrow.md")]
 #[macro_export]
 macro_rules! maybe_borrow {
-    ($(for<$lt:lifetime $(,)?>)? |$($ptr:ident),+ $(,)?| -> $Ret:ty $block:block $(,)?) => {{
+    ($(for<$($lt:lifetime),* $(,)?>)? |$($ptr:ident),+ $(,)?| -> $Ret:ty $block:block $(,)?) => {{
         $crate::_m::__maybe_borrow! {
-            $crate::_m::WithLt![$($lt ->)? $Ret],
+            $Ret,
+            [$($($lt)*)?],
             |[$($ptr)+]| { $crate::_m::ControlFlow::Continue({
-                #[allow(unused)]
-                use $crate::_m::__return_borrowed as return_borrowed;
-                #[allow(unused)]
-                use $crate::_m::__ready as ready;
-
-                $block
+                $crate::_m::__import_contextual_macros! { __return_borrowed, $block }
             }) }
         }
     }};
@@ -80,14 +76,11 @@ pub use maybe_borrow;
 macro_rules! try_maybe_borrow {
     ($(for<$lt:lifetime $(,)?>)? |$($ptr:ident),+ $(,)?| -> $Ret:ty $block:block $(,)?) => {
         $crate::_m::__maybe_borrow! {
-            $crate::_m::WithLt![$($lt ->)? $Ret],
-            |[$($ptr)+]| { $crate::_m::try_maybe_borrow_helper(|w| w.wrap({
-                #[allow(unused)]
-                use $crate::_m::__return_borrowed_try as return_borrowed;
-                #[allow(unused)]
-                use $crate::_m::__ready as ready;
-                $block
-            })) }
+            $Ret,
+            [$($lt)?],
+            |[$($ptr)+]| { $crate::_m::try_maybe_borrow_helper(|w| w.wrap(
+                $crate::_m::__import_contextual_macros! { __return_borrowed_try, $block }
+            )) }
         }
     };
 
@@ -102,26 +95,119 @@ pub use try_maybe_borrow;
 
 #[doc(hidden)]
 #[macro_export]
+macro_rules! __actual_combined_with_lt {
+    (=> $Ret:ty) => { $Ret };
+    ($lt0:lifetime $($lt:lifetime)* => $Ret:ty) => {
+        $crate::_m::Actual<
+            $crate::_m::WithLt![
+                $lt0 -> $crate::_m::__actual_combined_with_lt![$($lt)* => $Ret]
+            ]
+        >
+    };
+}
+
+pub use __actual_combined_with_lt;
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __import_contextual_macros {
+    ($return_borrowed:ident, $block:expr) => {{
+        #[allow(unused)]
+        use $crate::_m::__ready as ready;
+        #[allow(unused)]
+        use $crate::_m::$return_borrowed as return_borrowed;
+        $block
+    }};
+}
+
+pub use __import_contextual_macros;
+
+#[doc(hidden)]
+#[macro_export]
 macro_rules! __maybe_borrow {
-    ($Ret:ty, |$ptr:tt| $block:block) => {{
-        let (_out, _ptr) = match $crate::_m::maybe_borrow::<_, $Ret, _>(
-            $crate::_m::__nest_pattern!(@input <- $ptr),
-            |$crate::_m::__nest_pattern!(@mut <- $ptr), _| {
-                let _ = $crate::_m::__nest_pattern!(@noop_use_mut <- $ptr);
-                $block
-            },
-        ) {
+    ($Ret:ty, $lt:tt, |$ptr:tt| $block:block) => {{
+        let _pairs = match $crate::_m::__maybe_borrow_nested! {
+            $Ret, [], $lt, [], |$ptr| $block
+        } {
             $crate::_m::ControlFlow::Break(_ret) => return _ret,
-            $crate::_m::ControlFlow::Continue(_pair) => _pair
+            $crate::_m::ControlFlow::Continue(_pairs) => _pairs,
         };
 
+        let _out;
+
         #[allow(unused_assignments)]
-        { $crate::_m::__pointer_assign! { $ptr <- _ptr } }
+        {
+            $crate::_m::__pointer_assign! { _out $lt $ptr <- _pairs }
+        }
         _out
     }};
 }
 
 pub use __maybe_borrow;
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __maybe_borrow_nested {
+    // No arguments remaining:
+    ($Ret:ty, $past_lt:tt, $lt:tt, [$($all_ptrs:tt)*], |[]| $block:block) => {{
+        $(
+            let mut $all_ptrs = $all_ptrs.0;
+            $crate::_m::noop_use_mut(&mut $all_ptrs);
+        )*
+        $block
+    }};
+
+    // Only one lifetime parameter remaining:
+    (
+        $Ret:ty,
+        [$($past_lt:lifetime)*], [$($lt0:lifetime)?],
+        [$($past_ptrs:tt)*], |$ptr:tt| $block:block
+    ) => {
+            $crate::_m::maybe_borrow::<
+            _,
+            $crate::_m::WithLt![$($lt0 ->)? $crate::_m::__actual_combined_with_lt![
+                $($past_lt)* => $Ret
+            ]],
+            _,
+        >(
+            $crate::_m::__nest_pattern!(@input <- $ptr),
+            |$crate::_m::__nest_pattern!(@mut <- $ptr), _| {
+                $(
+                    let mut $past_ptrs = $past_ptrs.0;
+                    $crate::_m::noop_use_mut(&mut $past_ptrs);
+                )*
+                let _ = $crate::_m::__nest_pattern!(@noop_use_mut <- $ptr);
+                $block
+            },
+        )
+    };
+
+    (
+        $Ret:ty,
+        [$($past_lt:lifetime)*], [$lt0:lifetime $($lt:lifetime)+],
+        [$($past_ptrs:tt)*], |[$ptr0:ident $($ptr:ident)*]| $block:block
+    ) => {
+            $crate::_m::maybe_borrow::<
+            _,
+            $crate::_m::WithLt![$lt0 -> $crate::_m::__actual_combined_with_lt![
+                $($past_lt)* $($lt)* => $Ret
+            ]],
+            _,
+        >(
+            $ptr0,
+            |$ptr0, _| {
+                let $ptr0 = $crate::_m::ForceMove($ptr0);
+                $crate::_m::__maybe_borrow_nested! {
+                    $Ret,
+                    [$($past_lt)* $lt0], [$($lt)*],
+                    [$($past_ptrs)* $ptr0], |[ $($ptr)* ]| $block
+                }
+            },
+        )
+    };
+}
+
+pub use __maybe_borrow_nested;
 
 #[doc(hidden)]
 #[macro_export]
@@ -143,16 +229,31 @@ pub use __nest_pattern;
 #[doc(hidden)]
 #[macro_export]
 macro_rules! __pointer_assign {
-    ([$ptr:ident] <- $value:expr) => {
-        $ptr = $value;
+    ( @final [$ptr0:ident $($ptr:ident)+] <- $value:expr) => {
+        let _value = $value;
+        $ptr0 = _value.0;
+        $crate::_m::__pointer_assign! { @final [$($ptr)*] <- _value.1 }
     };
-    ([$ptr0:ident $($ptr:ident)+] <- $value:expr) => {
-        $ptr0 = $value.0;
-        $crate::_m::__pointer_assign! { [$($ptr)*] <- $value.1 }
+    ( @final [$ptr0:ident] <- $value:expr) => {
+        $ptr0 = $value;
     };
-    ([] <- $value:expr) => {
+    ( @final [] <- $value:expr) => {
         () = $value;
-    }
+    };
+    ($out:ident [$($lt:lifetime)?] $ptr:tt <- $value:expr) => {
+        let (_out, _value) = $value;
+        $out = _out;
+        $crate::_m::__pointer_assign! { @final $ptr <- _value }
+    };
+    ($out:ident [$lt0:lifetime $($lt:lifetime)+] [$ptr0:ident $($ptr:ident)*] <- $value:expr) => {
+        let _value = $value;
+        $ptr0 = _value.1;
+        $crate::_m::__pointer_assign! { $out [$($lt)*] [$($ptr)*] <- _value.0 }
+    };
+    ($out:ident $lt:tt [] <- $value:expr) => {
+        compile_error!(stringify!($out $lt $x));
+        $out = $value;
+    };
 }
 
 pub use __pointer_assign;

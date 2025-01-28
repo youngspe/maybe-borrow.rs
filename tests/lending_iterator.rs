@@ -22,7 +22,7 @@ trait LendingIterator: for<'iter> LendingIteratorLt<'iter, ItemLt = Self::Item<'
     where
         Self: 'iter;
 
-    fn next<'iter>(&'iter mut self) -> Option<Self::Item<'iter>> {
+    fn next(&mut self) -> Option<Self::Item<'_>> {
         self.next_lt()
     }
 }
@@ -121,7 +121,7 @@ fn test_next_filtered() {
     let mut iter = Windows::new([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 3);
 
     let items = Vec::from_iter(std::iter::from_fn(move || {
-        next_filtered(&mut iter, |x| x[0] % 2 != 0).map(|x| x.iter().copied().collect::<Vec<_>>())
+        next_filtered(&mut iter, |x| x[0] % 2 != 0).map(|x| x.to_vec())
     }));
 
     assert_eq!(items, [[1, 2, 3], [3, 4, 5], [5, 6, 7], [7, 8, 9],])
@@ -133,7 +133,7 @@ fn test_next_filtered_with_try() {
 
     let items = Vec::from_iter(std::iter::from_fn(move || {
         next_filtered_with_try(&mut iter, |x| x[0] % 2 != 0)
-            .map(|x| x.iter().copied().collect::<Vec<_>>())
+            .map(|x| x.to_vec())
     }));
 
     assert_eq!(items, [[1, 2, 3], [3, 4, 5], [5, 6, 7], [7, 8, 9],])

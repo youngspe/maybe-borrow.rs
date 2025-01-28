@@ -35,6 +35,10 @@ pub mod _m {
         task::Poll,
     };
 
+    /// Container that's not [`Copy`] so it automatically gets moved into a closure
+    /// rather than referenced.
+    pub struct ForceMove<T>(pub T);
+
     /// Does nothing with a mutable borrow of `T`.
     /// Call this from a macro to prevent `unused_mut` by proving a variable is mutably borrowed at
     /// least once.
