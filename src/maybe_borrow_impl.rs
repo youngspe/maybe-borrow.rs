@@ -7,11 +7,11 @@ use crate::{
 
 pub type BorrowedAs<'b, B> = <B as BorrowWithLifetime<'b>>::Pointer;
 
-pub fn maybe_borrow<'ptr, Ptr: 'ptr + Reborrow<'ptr>, B: WithLt + 'ptr, C>(
+pub fn maybe_borrow<'ptr, Ptr: 'ptr + Reborrow<'ptr>, B: WithLt, C>(
     this: Ptr,
     block: impl for<'unknown> FnOnce(
         BorrowedAs<'unknown, Ptr::BorrowWithLifetime>,
-        PhantomData<&'unknown B>,
+        PhantomData<&'unknown ()>,
     ) -> ControlFlow<Actual<'unknown, B>, C>,
 ) -> ControlFlow<Actual<'ptr, B>, (C, Ptr)> {
     let mut this = ManuallyDrop::new(this);

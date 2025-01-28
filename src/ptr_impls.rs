@@ -1,3 +1,4 @@
+#![allow(clippy::needless_lifetimes)]
 use core::{ops::Deref, pin::Pin};
 
 use crate::{maybe_borrow_impl::BorrowedAs, traits::Reborrow, utils::ref_cast_mut, WithLt};

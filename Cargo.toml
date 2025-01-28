@@ -1,6 +1,6 @@
 [package]
 name = "maybe-borrow"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 description = "Macros for conditionally returning borrowed data."
 keywords = ["polonius", "macro"]
@@ -13,4 +13,4 @@ should-it-compile = "0.1.0"
 
 [dev-dependencies]
 futures = "0.3.31"
-pin-project-lite = "0.2.15"
+pin-project-lite = "0.2.16"
